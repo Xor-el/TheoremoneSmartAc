@@ -3,6 +3,11 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# SQLite database
+/**/SmartAc.db
+/**/SmartAc.db-shm
+/**/SmartAc.db-wal
+
 # User-specific files
 *.rsuser
 *.suo
