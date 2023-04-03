@@ -6,7 +6,7 @@ using SmartAc.Application.Contracts;
 namespace SmartAc.API.Filters
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public class ReadingsValidationAttribute : Attribute, IAsyncActionFilter
+    public class ValidateReadingsAttribute : Attribute, IAsyncActionFilter
     {
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {

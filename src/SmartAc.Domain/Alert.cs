@@ -5,6 +5,8 @@ namespace SmartAc.Domain;
 
 public class Alert : EntityBase
 {
+    private Alert(){}
+
     private Alert(AlertType alertType, string deviceSerialNumber, DateTimeOffset reportedDateTime, string message)
     {
         DeviceSerialNumber = deviceSerialNumber;

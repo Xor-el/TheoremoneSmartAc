@@ -8,18 +8,21 @@ namespace SmartAc.Application.Specifications.Devices
         public DevicesWithAlertsSpecification()
         {
             AddInclude(x => x.Alerts);
+            AddInclude(x => x.DeviceReadings);
         }
 
         public DevicesWithAlertsSpecification(string serialNumber)
             : base(x => x.SerialNumber == serialNumber)
         {
             AddInclude(x => x.Alerts);
+            AddInclude(x => x.DeviceReadings);
         }
 
-        public DevicesWithAlertsSpecification(string serialNumber, AlertState alertState)
-            : base(x => x.SerialNumber == serialNumber && x.Alerts.Any(a => a.AlertState == alertState))
+        public DevicesWithAlertsSpecification(string serialNumber, AlertState alertState) 
+            : this(serialNumber)
         {
-            AddInclude(x => x.Alerts);
+            AddInclude(x => x.Alerts.Where(a => a.AlertState == alertState));
+            AddInclude(x => x.DeviceReadings);
         }
     }
 }

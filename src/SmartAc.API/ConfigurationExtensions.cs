@@ -7,7 +7,6 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SmartAc.API.Data;
-using SmartAc.API.Filters;
 using SmartAc.API.Identity;
 using SmartAc.API.Middlewares;
 using SmartAc.Application.Options;
@@ -24,8 +23,6 @@ internal static class ConfigurationExtensions
         services.TryAddTransient<IAuthorizationHandler, ValidTokenAuthorizationHandler>();
 
         services.TryAddTransient<GlobalExceptionHandlingMiddleware>();
-
-        services.TryAddScoped<RegistrationValidationFilterAttribute>();
 
         services
             .AddOptions<SensorParams>()
@@ -81,7 +78,7 @@ internal static class ConfigurationExtensions
         var audience = configuration["Jwt:Audience"];
         var signingKey = configuration["Jwt:Key"];
 
-        services.AddAuthorization();
+        //services.AddAuthorization();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -89,7 +86,7 @@ internal static class ConfigurationExtensions
             {
                 options.RequireHttpsMetadata = false;
                 options.SaveToken = true;
-                options.TokenValidationParameters = new TokenValidationParameters()
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,

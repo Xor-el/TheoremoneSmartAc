@@ -1,8 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using SmartAc.API.Bindings;
 using SmartAc.API.Filters;
 using SmartAc.Application.Abstractions.Repositories;
@@ -10,9 +8,12 @@ using SmartAc.Application.Abstractions.Services;
 using SmartAc.Application.Contracts;
 using SmartAc.Application.Features.Devices.Get;
 using SmartAc.Application.Features.Devices.GetAlertLogs;
-using SmartAc.Application.Features.Devices.SaveReadings;
 using SmartAc.Domain;
 using SmartAc.Infrastructure.Services;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using SmartAc.API.Contracts;
+using SmartAc.Application.Features.Devices.StoreReadings;
 
 namespace SmartAc.API.Controllers;
 
@@ -54,7 +55,7 @@ public class DeviceIngestionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
-    [ServiceFilter(typeof(RegistrationValidationFilterAttribute))]
+    [ValidateFirmware]
     public async Task<IActionResult> RegisterDevice(
         [Required][FromRoute] string serialNumber,
         [Required][FromHeader(Name = "x-device-shared-secret")] string sharedSecret,
@@ -108,12 +109,15 @@ public class DeviceIngestionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
-    [ReadingsValidation]
+    [ValidateReadings]
+    [AllowAnonymous]
     public async Task<IActionResult> AddSensorReadings(
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromBody] IEnumerable<SensorReading> sensorReadings)
     {
-        await _sender.Send(new SubmitReadingsCommand(serialNumber, sensorReadings));
+        await _sender
+            .Send(new StoreReadingsCommand(serialNumber, sensorReadings))
+            .ConfigureAwait(false);
 
         return Accepted();
     }
@@ -123,7 +127,7 @@ public class DeviceIngestionController : ControllerBase
     /// 
     /// </summary>
     /// <param name="serialNumber">Unique device identifier burned into ROM.</param>
-    /// <param name="parameters">Query parameters.</param>
+    /// <param name="parameters">Query parameters for data filtering and paging.</param>
     /// <response code="401">If something is wrong on the information provided.</response>
     /// <response code="404">If there is no device int the database matching the parameters</response>
     /// <response code="200">There is data to display</response>
@@ -131,24 +135,23 @@ public class DeviceIngestionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
     public async Task<IActionResult> GetSensorAlerts(
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromQuery] QueryParams parameters)
     {
         var alertResult =
-            await _sender.Send(new GetAlertLogsQuery(serialNumber, parameters.Filter));
+            await _sender.Send(new GetAlertLogsQuery(serialNumber, parameters));
 
         if (alertResult.IsError)
         {
             return NotFound(new { alertResult.FirstError.Code, alertResult.FirstError.Description });
         }
 
-        var res =
-            new PagedList<LogResult>(
-                alertResult.Value,
-                alertResult.Value.Count(),
-                parameters.PageNumber,
-                parameters.PageSize);
+        var res = PagedList<LogItem>.ToPagedList(
+            alertResult.Value.AsQueryable(),
+            parameters.PageNumber,
+            parameters.PageSize);
 
         var metadata = new
         {

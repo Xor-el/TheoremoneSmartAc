@@ -6,20 +6,20 @@ using SmartAc.Application.Options;
 using SmartAc.Application.Specifications.Alerts;
 using SmartAc.Domain;
 
-namespace SmartAc.Application.Features.Devices.SaveReadings;
+namespace SmartAc.Application.Features.Devices.StoreReadings;
 
-internal sealed class SubmitReadingsCommandHandler : IRequestHandler<SubmitReadingsCommand>
+internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReadingsCommand>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly SensorParams _sensorParams;
 
-    public SubmitReadingsCommandHandler(IUnitOfWork unitOfWork, IOptions<SensorParams> parameters)
+    public StoreReadingsCommandHandler(IUnitOfWork unitOfWork, IOptions<SensorParams> parameters)
     {
         _unitOfWork = unitOfWork;
         _sensorParams = parameters.Value;
     }
 
-    public async Task Handle(SubmitReadingsCommand request, CancellationToken cancellationToken)
+    public async Task Handle(StoreReadingsCommand request, CancellationToken cancellationToken)
     {
         var readings =
             request.Readings
@@ -61,15 +61,17 @@ internal sealed class SubmitReadingsCommandHandler : IRequestHandler<SubmitReadi
                 continue;
             }
 
-            var dbAlert = alertRepository.Find(specification).Single();
+            var dbAlert = alertRepository.Find(specification).First();
 
-            var diff = (alert.DateTimeReported - dbAlert.DateTimeReported).Minutes;
+            var diff = (alert.DateTimeReported - dbAlert.DateTimeReported).TotalMinutes;
 
             var alertState = diff <= _sensorParams.ReadingTimespanMinutes
                 ? dbAlert.AlertState == AlertState.Resolved ? AlertState.New : dbAlert.AlertState
                 : AlertState.Resolved;
 
             dbAlert.Update(alert.DateTimeReported, alert.Message, alertState);
+
+            alertRepository.Update(dbAlert);
 
             if (diff > _sensorParams.ReadingTimespanMinutes)
             {
@@ -91,6 +93,7 @@ internal sealed class SubmitReadingsCommandHandler : IRequestHandler<SubmitReadi
         foreach (var alert in alerts.Where(alert => Helpers.Helpers.IsResolved(alert.AlertType, reading, _sensorParams)))
         {
             alert.Update(reading.RecordedDateTime, alert.Message, AlertState.Resolved);
+            alertRepository.Update(alert);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
