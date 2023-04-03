@@ -71,9 +71,4 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
 
         return joinQuery.ToList();
     }
-
-    private sealed record DeviceInfo(
-        string SerialNumber, 
-        List<Alert> Alerts,
-        List<DeviceReading> Readings);
 }
