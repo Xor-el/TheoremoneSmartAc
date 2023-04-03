@@ -19,6 +19,7 @@ public sealed class ValidateFirmwareAttribute : Attribute, IAsyncActionFilter
         if (context.ModelState.IsValid && _regex.IsMatch(firmwareVersion))
         {
             await next();
+            return;
         }
 
         context.ModelState.AddModelError(
