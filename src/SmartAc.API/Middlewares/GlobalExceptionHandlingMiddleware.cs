@@ -12,11 +12,11 @@ public class GlobalExceptionHandlingMiddleware : IMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+    public Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         try
         {
-            await next(context);
+            next(context);
         }
         catch (Exception e)
         {
@@ -32,7 +32,8 @@ public class GlobalExceptionHandlingMiddleware : IMiddleware
             };
 
             var json = JsonSerializer.Serialize(problem);
-            await context.Response.WriteAsync(json);
+            context.Response.WriteAsync(json);
         }
+        return Task.CompletedTask;
     }
 }

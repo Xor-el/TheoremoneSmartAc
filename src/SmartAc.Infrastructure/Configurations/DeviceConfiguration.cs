@@ -8,18 +8,23 @@ internal sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
 {
     public void Configure(EntityTypeBuilder<Device> builder)
     {
-        builder.HasMany(x => x.DeviceReadings)
+        builder
+            .HasMany(x => x.DeviceReadings)
             .WithOne(x => x.Device)
             .IsRequired();
 
-        builder.HasMany(x => x.DeviceRegistrations)
+        builder
+            .HasMany(x => x.DeviceRegistrations)
             .WithOne(x => x.Device)
             .IsRequired();
 
-        builder.HasMany(x => x.Alerts)
+        builder
+            .HasMany(x => x.Alerts)
             .WithOne(x => x.Device)
             .IsRequired();
 
-        builder.HasIndex(x => x.SharedSecret).IsUnique();
+        builder
+            .HasIndex(x => x.SharedSecret)
+            .IsUnique();
     }
 }

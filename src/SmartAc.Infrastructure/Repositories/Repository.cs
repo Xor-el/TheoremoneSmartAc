@@ -28,10 +28,10 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : EntityBa
     public void RemoveRange(IEnumerable<TEntity> entities) => _table.RemoveRange(entities);
 
     public async Task<bool> ContainsAsync(ISpecification<TEntity> specification, CancellationToken cancellationToken = default)
-        => await CountAsync(specification, cancellationToken) > 0;
+        => await CountAsync(specification, cancellationToken).ConfigureAwait(false) > 0;
 
     public async Task<bool> ContainsAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
-        => await CountAsync(predicate, cancellationToken) > 0;
+        => await CountAsync(predicate, cancellationToken).ConfigureAwait(false) > 0;
 
     public Task<int> CountAsync(ISpecification<TEntity> specification, CancellationToken cancellationToken = default)
         => ApplySpecification(specification).CountAsync(cancellationToken);

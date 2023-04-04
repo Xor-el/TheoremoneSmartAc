@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 
-        services.TryAddScoped(typeof(IRepository<>), typeof(Repository<>));
+        services.TryAddSingleton(typeof(IRepository<>), typeof(Repository<>));
 
         services.TryAddTransient<ISmartAcJwtService, SmartAcJwtService>();
 

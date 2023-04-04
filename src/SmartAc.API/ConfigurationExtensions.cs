@@ -13,6 +13,7 @@ using SmartAc.Application.Options;
 using SmartAc.Infrastructure.Repositories;
 using SmartAc.Infrastructure.Services;
 using FluentValidation;
+using SmartAc.Application.Abstractions.Services;
 
 namespace SmartAc.API;
 
@@ -78,8 +79,6 @@ internal static class ConfigurationExtensions
         var audience = configuration["Jwt:Audience"];
         var signingKey = configuration["Jwt:Key"];
 
-        //services.AddAuthorization();
-
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -98,15 +97,20 @@ internal static class ConfigurationExtensions
                 };
             });
 
+        var jwtService =
+            services
+                .BuildServiceProvider()
+                .GetRequiredService<ISmartAcJwtService>();
+
         services.AddAuthorization(options =>
         {
             options.AddPolicy("DeviceAdmin", policy =>
-                policy.RequireRole(SmartAcJwtService.JwtScopeDeviceAdminService)
+                policy.RequireRole(jwtService.JwtScopeDeviceAdminService)
             );
 
             options.AddPolicy("DeviceIngestion", policy =>
             {
-                policy.RequireRole(SmartAcJwtService.JwtScopeDeviceIngestionService);
+                policy.RequireRole(jwtService.JwtScopeDeviceIngestionService);
                 policy.AddRequirements(new ValidTokenRequirement());
             });
         });

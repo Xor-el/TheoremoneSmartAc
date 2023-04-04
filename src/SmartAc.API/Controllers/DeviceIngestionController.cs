@@ -3,16 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartAc.API.Bindings;
 using SmartAc.API.Filters;
-using SmartAc.Application.Abstractions.Repositories;
-using SmartAc.Application.Abstractions.Services;
 using SmartAc.Application.Contracts;
-using SmartAc.Application.Features.Devices.Get;
 using SmartAc.Application.Features.Devices.GetAlertLogs;
-using SmartAc.Domain;
-using SmartAc.Infrastructure.Services;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using SmartAc.API.Contracts;
+using SmartAc.Application.Features.Devices.Register;
 using SmartAc.Application.Features.Devices.StoreReadings;
 
 namespace SmartAc.API.Controllers;
@@ -23,21 +19,8 @@ namespace SmartAc.API.Controllers;
 public class DeviceIngestionController : ControllerBase
 {
     private readonly ISender _sender;
-    private readonly ISmartAcJwtService _jwtService;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeviceIngestionController> _logger;
 
-    public DeviceIngestionController(
-        ISender sender,
-        ISmartAcJwtService jwtService,
-        IUnitOfWork unitOfWork,
-        ILogger<DeviceIngestionController> logger)
-    {
-        _sender = sender;
-        _jwtService = jwtService;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
+    public DeviceIngestionController(ISender sender) => _sender = sender;
 
     /// <summary>
     /// Allow smart ac devices to register themselves  
@@ -61,36 +44,19 @@ public class DeviceIngestionController : ControllerBase
         [Required][FromHeader(Name = "x-device-shared-secret")] string sharedSecret,
         [Required][FromQuery] string firmwareVersion)
     {
-        var deviceResult =
-            await _sender.Send(new GetDeviceQuery(serialNumber, sharedSecret));
+        var registerResult = await
+            _sender.Send(new RegisterDeviceCommand(serialNumber, sharedSecret, firmwareVersion));
 
-        if (deviceResult.IsError)
+        if (registerResult.IsError)
         {
-            return NotFound(new { deviceResult.FirstError.Code, deviceResult.FirstError.Description });
+            return NotFound(new
+            {
+                registerResult.FirstError.Code,
+                registerResult.FirstError.Description
+            });
         }
 
-        var device = deviceResult.Value;
-
-        var (tokenId, jwtToken) =
-            _jwtService.GenerateJwtFor(serialNumber, SmartAcJwtService.JwtScopeDeviceIngestionService);
-
-        var newRegistrationDevice = new DeviceRegistration
-        {
-            DeviceSerialNumber = device.SerialNumber,
-            TokenId = tokenId
-        };
-
-        device.AddRegistration(newRegistrationDevice, firmwareVersion);
-
-        _unitOfWork.GetRepository<Device>().Update(device);
-
-        await _unitOfWork.SaveChangesAsync();
-
-        _logger.LogDebug(
-            "A new registration record with tokenId '{tokenId}'  has been created for the device '{serialNumber}'",
-            serialNumber, tokenId);
-
-        return Ok(jwtToken);
+        return Ok(registerResult.Value);
     }
 
     /// <summary>
@@ -111,15 +77,15 @@ public class DeviceIngestionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ValidateReadings]
     [AllowAnonymous]
-    public async Task<IActionResult> AddSensorReadings(
+    public Task<IActionResult> AddSensorReadings(
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromBody] IEnumerable<SensorReading> sensorReadings)
     {
-        await _sender
+        _sender
             .Send(new StoreReadingsCommand(serialNumber, sensorReadings))
             .ConfigureAwait(false);
 
-        return Accepted();
+        return Task.FromResult<IActionResult>(Accepted());
     }
 
     /// <summary>
@@ -145,7 +111,11 @@ public class DeviceIngestionController : ControllerBase
 
         if (alertResult.IsError)
         {
-            return NotFound(new { alertResult.FirstError.Code, alertResult.FirstError.Description });
+            return NotFound(new
+            {
+                alertResult.FirstError.Code, 
+                alertResult.FirstError.Description
+            });
         }
 
         var res = PagedList<LogItem>.ToPagedList(

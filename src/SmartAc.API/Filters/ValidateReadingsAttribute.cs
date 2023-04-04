@@ -8,12 +8,12 @@ namespace SmartAc.API.Filters
     [AttributeUsage(AttributeTargets.Method)]
     public class ValidateReadingsAttribute : Attribute, IAsyncActionFilter
     {
-        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        public Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             if (context.ActionArguments["sensorReadings"] is not List<SensorReading> readings)
             {
                 context.Result = new BadRequestResult();
-                return;
+                return Task.CompletedTask;
             }
 
             var validator = context
@@ -21,18 +21,20 @@ namespace SmartAc.API.Filters
                 .RequestServices
                 .GetRequiredService<IValidator<SensorReading>>();
 
-            var validationResults =
+            var hasValidationErrors =
                 readings
                     .Select(x => validator.Validate(x))
-                    .SelectMany(x => x.Errors);
+                    .SelectMany(x => x.Errors)
+                    .Any();
 
-            if (validationResults.Any())
+            if (hasValidationErrors)
             {
                 context.Result = new UnprocessableEntityResult();
-                return;
+                return Task.CompletedTask;
             }
 
-            await next();
+            next();
+            return Task.CompletedTask;
         }
     }
 }

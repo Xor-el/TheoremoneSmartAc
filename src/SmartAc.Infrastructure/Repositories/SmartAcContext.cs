@@ -12,8 +12,11 @@ public sealed class SmartAcContext : DbContext
     }
 
     public DbSet<Device> Devices => Set<Device>();
+
     public DbSet<DeviceRegistration> DeviceRegistrations => Set<DeviceRegistration>();
+
     public DbSet<DeviceReading> DeviceReadings => Set<DeviceReading>();
+
     public DbSet<Alert> Alerts => Set<Alert>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

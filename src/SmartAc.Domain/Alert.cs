@@ -5,7 +5,9 @@ namespace SmartAc.Domain;
 
 public class Alert : EntityBase
 {
+#pragma warning disable CS8618
     private Alert(){}
+#pragma warning restore CS8618
 
     private Alert(AlertType alertType, string deviceSerialNumber, DateTimeOffset reportedDateTime, string message)
     {
@@ -36,11 +38,7 @@ public class Alert : EntityBase
 
     public Device Device { get; private set; } = null!;
 
-    public static Alert CreateNew(
-        AlertType alertType,
-        string deviceSerialNumber,
-        DateTimeOffset reportDate,
-        string alertMessage)
+    public static Alert CreateNew(AlertType alertType, string deviceSerialNumber, DateTimeOffset reportDate, string alertMessage)
     {
         return new Alert(alertType, deviceSerialNumber, reportDate, alertMessage);
     }

@@ -12,14 +12,14 @@ public sealed class ValidateFirmwareAttribute : Attribute, IAsyncActionFilter
     private readonly Regex _regex =
         new(SmVerRegexString, RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace);
 
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    public Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         string firmwareVersion = context.HttpContext.Request.Query["firmwareVersion"];
 
         if (context.ModelState.IsValid && _regex.IsMatch(firmwareVersion))
         {
-            await next();
-            return;
+            next();
+            return Task.CompletedTask;
         }
 
         context.ModelState.AddModelError(
@@ -29,5 +29,7 @@ public sealed class ValidateFirmwareAttribute : Attribute, IAsyncActionFilter
         var vp = new ValidationProblemDetails(context.ModelState);
 
         context.Result = new BadRequestObjectResult(vp);
+
+        return Task.CompletedTask;
     }
 }

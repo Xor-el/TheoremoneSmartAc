@@ -32,7 +32,7 @@ internal sealed class GetDeviceQueryHandler : IRequestHandler<GetDeviceQuery, Er
         }
 
         _logger.LogDebug(
-            "There is not a matching device for serial number {serialNumber} and the secret provided.",
+            "There is no matching device for serial number {serialNumber} and the secret provided.",
             request.SerialNumber);
 
         return Error.NotFound(

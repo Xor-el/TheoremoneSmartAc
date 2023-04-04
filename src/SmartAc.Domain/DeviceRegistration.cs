@@ -6,7 +6,7 @@ namespace SmartAc.Domain;
 public class DeviceRegistration : EntityBase
 {
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int DeviceRegistrationId { get; set; }
+    public int DeviceRegistrationId { get; private set; }
 
     public Device Device { get; private set; } = null!;
 

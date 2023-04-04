@@ -1,23 +1,26 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using SmartAc.Application.Abstractions.Services;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
 
 namespace SmartAc.Infrastructure.Services;
 
 public sealed class SmartAcJwtService : ISmartAcJwtService
 {
-    public const string JwtScopeApiKey = "ApiKey";
-    public const string JwtScopeDeviceIngestionService = "DeviceIngestionApi";
-    public const string JwtScopeDeviceAdminService = "DeviceAdminApi";
+    public string JwtScopeApiKey => "ApiKey";
+
+    public string JwtScopeDeviceIngestionService => "DeviceIngestionApi";
+
+    public string JwtScopeDeviceAdminService => "DeviceAdminApi";
 
     private readonly string _key;
-    private readonly string _issuer;
-    private readonly string _audience;
 
+    private readonly string _issuer;
+
+    private readonly string _audience;
 
     public SmartAcJwtService(IConfiguration configuration)
     {
