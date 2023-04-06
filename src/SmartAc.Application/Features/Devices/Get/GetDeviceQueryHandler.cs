@@ -1,5 +1,6 @@
 using ErrorOr;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Specifications.Devices;
@@ -28,7 +29,7 @@ internal sealed class GetDeviceQueryHandler : IRequestHandler<GetDeviceQuery, Er
 
         if (await repo.ContainsAsync(specification, cancellationToken))
         {
-            return repo.Find(specification).Single();
+            return await repo.Find(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
         }
 
         _logger.LogDebug(

@@ -2,39 +2,35 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using SmartAc.Application.Contracts;
+using System.Collections.Immutable;
 
 namespace SmartAc.API.Filters
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public class ValidateReadingsAttribute : Attribute, IAsyncActionFilter
+    public class ValidateReadingsAttribute : ActionFilterAttribute
     {
-        public Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        public override void OnActionExecuting(ActionExecutingContext context)
         {
-            if (context.ActionArguments["sensorReadings"] is not List<SensorReading> readings)
-            {
-                context.Result = new BadRequestResult();
-                return Task.CompletedTask;
-            }
+            var readings = 
+                context.ActionArguments["sensorReadings"] as IEnumerable<SensorReading>;
 
-            var validator = context
-                .HttpContext
-                .RequestServices
-                .GetRequiredService<IValidator<SensorReading>>();
+            var validator =
+                context.HttpContext.RequestServices.GetRequiredService<IValidator<SensorReading>>();
 
-            var hasValidationErrors =
-                readings
+            var errors =
+                readings?
                     .Select(x => validator.Validate(x))
                     .SelectMany(x => x.Errors)
-                    .Any();
+                    .GroupBy(x => x.PropertyName)
+                    .ToImmutableDictionary(
+                        g => g.Key,
+                        g => g.Select(x => x.ErrorMessage).ToArray());
 
-            if (hasValidationErrors)
+            if (errors?.Any() == true)
             {
-                context.Result = new UnprocessableEntityResult();
-                return Task.CompletedTask;
+                var vpd = new ValidationProblemDetails(errors);
+                context.Result = new BadRequestObjectResult(vpd);
             }
-
-            next();
-            return Task.CompletedTask;
         }
     }
 }

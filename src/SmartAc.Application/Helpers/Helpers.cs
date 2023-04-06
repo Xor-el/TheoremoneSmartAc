@@ -14,13 +14,13 @@ public static class Helpers
                 reading.Temperature.InRange(sensorParams.TemperatureMin, sensorParams.TemperatureMax) => true,
 
             AlertType.OutOfRangeCo when 
-                reading.CarbonMonoxide.InRange(sensorParams.CarbonMonoxideMin, sensorParams.CarbonMonoxideMax) => true,
+                reading.CarbonMonoxide.InRange(sensorParams.CarbonMonoxidePpmMin, sensorParams.CarbonMonoxidePpmMax) => true,
 
             AlertType.OutOfRangeHumidity when 
-                reading.Humidity.InRange(sensorParams.HumidityMin, sensorParams.HumidityMax) => true,
+                reading.Humidity.InRange(sensorParams.HumidityPctMin, sensorParams.HumidityPctMax) => true,
 
             AlertType.DangerousCoLevel when 
-                reading.CarbonMonoxide < sensorParams.CarbonMonoxideThreshold => true,
+                reading.CarbonMonoxide < sensorParams.CarbonMonoxideDangerLevel => true,
 
             AlertType.PoorHealth when 
                 reading.Health == DeviceHealth.Ok => true,

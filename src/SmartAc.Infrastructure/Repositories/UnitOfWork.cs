@@ -1,5 +1,6 @@
 using SmartAc.Application.Abstractions.Repositories;
 using System.Collections;
+using System.Runtime.CompilerServices;
 using SmartAc.Domain;
 
 namespace SmartAc.Infrastructure.Repositories;
@@ -15,7 +16,8 @@ public sealed class UnitOfWork : IUnitOfWork
         _repositories = new Hashtable();
     }
 
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => _context.SaveChangesAsync(cancellationToken);
+    public ConfiguredTaskAwaitable<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
+        => _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
     public IRepository<TEntity> GetRepository<TEntity>() where TEntity : EntityBase
     {

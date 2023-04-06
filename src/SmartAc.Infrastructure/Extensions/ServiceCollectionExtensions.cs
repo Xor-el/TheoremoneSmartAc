@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Abstractions.Services;
 using SmartAc.Infrastructure.Repositories;
@@ -18,12 +19,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSqlite<SmartAcContext>(connectionString, optionsAction: builder =>
         {
-            builder.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted });
+            builder.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted }, LogLevel.Information);
         });
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 
-        services.TryAddSingleton(typeof(IRepository<>), typeof(Repository<>));
+        services.TryAddScoped(typeof(IRepository<>), typeof(Repository<>));
 
         services.TryAddTransient<ISmartAcJwtService, SmartAcJwtService>();
 

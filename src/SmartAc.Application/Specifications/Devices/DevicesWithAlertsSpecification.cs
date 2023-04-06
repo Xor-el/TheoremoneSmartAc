@@ -18,10 +18,24 @@ namespace SmartAc.Application.Specifications.Devices
             AddInclude(x => x.DeviceReadings);
         }
 
-        public DevicesWithAlertsSpecification(string serialNumber, AlertState alertState) 
-            : this(serialNumber)
+        public DevicesWithAlertsSpecification(string serialNumber, int skip, int take)
+            : base(x => x.SerialNumber == serialNumber)
+        {
+            AddInclude(x => x.Alerts.Skip(skip).Take(take));
+            AddInclude(x => x.DeviceReadings);
+        }
+
+        public DevicesWithAlertsSpecification(string serialNumber, AlertState alertState)
+            : base(x => x.SerialNumber == serialNumber)
         {
             AddInclude(x => x.Alerts.Where(a => a.AlertState == alertState));
+            AddInclude(x => x.DeviceReadings);
+        }
+
+        public DevicesWithAlertsSpecification(string serialNumber, AlertState alertState, int skip, int take)
+            : base(x => x.SerialNumber == serialNumber)
+        {
+            AddInclude(x => x.Alerts.Where(a => a.AlertState == alertState).Skip(skip).Take(take));
             AddInclude(x => x.DeviceReadings);
         }
     }

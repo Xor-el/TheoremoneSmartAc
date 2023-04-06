@@ -16,7 +16,7 @@ public static class DeviceReadingExtensions
                 $"Sensor {reading.DeviceSerialNumber} reported out-of-range Temperature");
         }
 
-        if (!reading.CarbonMonoxide.InRange(sensorParams.CarbonMonoxideMin, sensorParams.CarbonMonoxideMax))
+        if (!reading.CarbonMonoxide.InRange(sensorParams.CarbonMonoxidePpmMin, sensorParams.CarbonMonoxidePpmMax))
         {
             yield return Alert.CreateNew(
                 AlertType.OutOfRangeCo,
@@ -25,7 +25,7 @@ public static class DeviceReadingExtensions
                 $"Sensor {reading.DeviceSerialNumber} reported out-of-range carbon Monoxide levels");
         }
 
-        if (reading.CarbonMonoxide >= sensorParams.CarbonMonoxideThreshold)
+        if (reading.CarbonMonoxide >= sensorParams.CarbonMonoxideDangerLevel)
         {
             yield return Alert.CreateNew(
                 AlertType.DangerousCoLevel,
@@ -34,7 +34,7 @@ public static class DeviceReadingExtensions
                 $"Sensor {reading.DeviceSerialNumber} - Reported CO value has exceeded danger limit");
         }
 
-        if (!reading.Humidity.InRange(sensorParams.HumidityMin, sensorParams.HumidityMax))
+        if (!reading.Humidity.InRange(sensorParams.HumidityPctMin, sensorParams.HumidityPctMax))
         {
             yield return Alert.CreateNew(
                 AlertType.OutOfRangeHumidity,

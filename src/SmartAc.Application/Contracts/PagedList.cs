@@ -1,4 +1,4 @@
-namespace SmartAc.API.Contracts;
+namespace SmartAc.Application.Contracts;
 
 public class PagedList<T> : List<T>
 {

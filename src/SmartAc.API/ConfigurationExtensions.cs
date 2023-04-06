@@ -11,7 +11,6 @@ using SmartAc.API.Identity;
 using SmartAc.API.Middlewares;
 using SmartAc.Application.Options;
 using SmartAc.Infrastructure.Repositories;
-using SmartAc.Infrastructure.Services;
 using FluentValidation;
 using SmartAc.Application.Abstractions.Services;
 

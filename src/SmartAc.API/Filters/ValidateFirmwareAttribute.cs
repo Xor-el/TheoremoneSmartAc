@@ -5,31 +5,32 @@ using System.Text.RegularExpressions;
 namespace SmartAc.API.Filters;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class ValidateFirmwareAttribute : Attribute, IAsyncActionFilter
+public sealed class ValidateFirmwareAttribute : ActionFilterAttribute
 {
     private const string SmVerRegexString = @"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$";
 
     private readonly Regex _regex =
         new(SmVerRegexString, RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace);
 
-    public Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    public override void OnActionExecuting(ActionExecutingContext context)
     {
         string firmwareVersion = context.HttpContext.Request.Query["firmwareVersion"];
 
-        if (context.ModelState.IsValid && _regex.IsMatch(firmwareVersion))
+        if (!context.ModelState.IsValid)
         {
-            next();
-            return Task.CompletedTask;
+            context.Result = new BadRequestObjectResult(context.ModelState);
+            return;
         }
 
-        context.ModelState.AddModelError(
-            "firmwareVersion",
-            "The firmware value does not match semantic versioning format.");
+        if (!_regex.IsMatch(firmwareVersion))
+        {
+            context.ModelState.AddModelError(
+                "firmwareVersion",
+                "The firmware value does not match semantic versioning format.");
 
-        var vp = new ValidationProblemDetails(context.ModelState);
+            var vpd = new ValidationProblemDetails(context.ModelState);
 
-        context.Result = new BadRequestObjectResult(vp);
-
-        return Task.CompletedTask;
+            context.Result = new BadRequestObjectResult(vpd);
+        }
     }
 }

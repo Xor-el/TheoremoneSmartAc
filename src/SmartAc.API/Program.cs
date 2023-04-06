@@ -12,6 +12,7 @@ builder.Services
 
 builder.Services
     .AddControllers()
+    //.ConfigureApiBehaviorOptions(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());

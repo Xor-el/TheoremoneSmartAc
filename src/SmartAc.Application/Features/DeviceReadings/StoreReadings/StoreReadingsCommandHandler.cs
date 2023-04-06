@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Extensions;
@@ -6,7 +7,7 @@ using SmartAc.Application.Options;
 using SmartAc.Application.Specifications.Alerts;
 using SmartAc.Domain;
 
-namespace SmartAc.Application.Features.Devices.StoreReadings;
+namespace SmartAc.Application.Features.DeviceReadings.StoreReadings;
 
 internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReadingsCommand>
 {
@@ -19,7 +20,7 @@ internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReading
         _sensorParams = parameters.Value;
     }
 
-    public async Task Handle(StoreReadingsCommand request, CancellationToken cancellationToken)
+    public Task Handle(StoreReadingsCommand request, CancellationToken cancellationToken)
     {
         var readings =
             request.Readings
@@ -30,16 +31,18 @@ internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReading
         {
             var saveTask = SaveReadingToDb(reading, cancellationToken);
             var alertsTask = ProcessPotentialAlerts(reading, cancellationToken);
-
-            await Task.WhenAll(saveTask, alertsTask);
-            await TryResolveErrorStates(reading, cancellationToken);
+            Task.WhenAll(saveTask, alertsTask).ConfigureAwait(false);
+            TryResolveErrorStates(reading, cancellationToken).ConfigureAwait(false);
         }
+
+        return Task.CompletedTask;
     }
 
-    private async Task SaveReadingToDb(DeviceReading reading, CancellationToken cancellationToken = default)
+    private Task SaveReadingToDb(DeviceReading reading, CancellationToken cancellationToken = default)
     {
         _unitOfWork.GetRepository<DeviceReading>().Add(reading);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     private async Task ProcessPotentialAlerts(DeviceReading reading, CancellationToken cancellationToken = default)
@@ -61,7 +64,11 @@ internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReading
                 continue;
             }
 
-            var dbAlert = alertRepository.Find(specification).First();
+            var dbAlert = await 
+                alertRepository
+                    .Find(specification)
+                    .FirstAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
             var diff = (alert.DateTimeReported - dbAlert.DateTimeReported).TotalMinutes;
 
@@ -88,7 +95,11 @@ internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReading
 
         var specification = new AlertsSpecification(reading.DeviceSerialNumber, AlertState.New);
 
-        var alerts = alertRepository.Find(specification).ToList();
+        var alerts = await 
+            alertRepository
+                .Find(specification)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
         foreach (var alert in alerts.Where(alert => Helpers.Helpers.IsResolved(alert.AlertType, reading, _sensorParams)))
         {

@@ -1,12 +1,13 @@
 ﻿using ErrorOr;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Abstractions.Services;
 using SmartAc.Application.Specifications.Devices;
 using SmartAc.Domain;
 
-namespace SmartAc.Application.Features.Devices.Register;
+namespace SmartAc.Application.Features.Devices.Registration;
 
 internal sealed class RegisterDeviceCommandHandler : IRequestHandler<RegisterDeviceCommand, ErrorOr<string>>
 {
@@ -21,22 +22,21 @@ internal sealed class RegisterDeviceCommandHandler : IRequestHandler<RegisterDev
         _jwtService = jwtService;
     }
 
-    public Task<ErrorOr<string>> Handle(RegisterDeviceCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> Handle(RegisterDeviceCommand request, CancellationToken cancellationToken)
     {
         var repository = _unitOfWork.GetRepository<Device>();
 
-        var device = repository
-            .Find(new DevicesWithRegistrationsSpecification(request.SerialNumber, request.SharedSecret))
-            .SingleOrDefault();
+        var specification = new DevicesWithRegistrationsSpecification(request.SerialNumber, request.SharedSecret, true);
 
-        if (device is null)
+        if (!await repository.ContainsAsync(specification, cancellationToken))
         {
-            var error = Error.NotFound(
+            return Error.NotFound(
                 "Device.NotFound",
                 $"Device with serial number '{request.SerialNumber}' and provided secret was not found.");
-
-            return Task.FromResult<ErrorOr<string>>(error);
         }
+
+        var device = 
+            await repository.Find(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
 
         var (tokenId, jwtToken) =
             _jwtService.GenerateJwtFor(request.SerialNumber, _jwtService.JwtScopeDeviceIngestionService);
@@ -51,10 +51,10 @@ internal sealed class RegisterDeviceCommandHandler : IRequestHandler<RegisterDev
 
         repository.Update(device);
 
-        _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("JWT Token created for device with serial number '{SerialNumber}'", request.SerialNumber);
 
-        return Task.FromResult<ErrorOr<string>>(jwtToken);
+        return jwtToken;
     }
 }

@@ -21,7 +21,7 @@ public class ValidTokenAuthorizationHandler : AuthorizationHandler<ValidTokenReq
         var isTokenValid = await _smartAcContext.DeviceRegistrations.AnyAsync(
             registration => registration.DeviceSerialNumber == deviceSerialNumber
                             && registration.TokenId == tokenId
-                            && registration.Active);
+                            && registration.Active).ConfigureAwait(false);
 
         if (isTokenValid)
         {
