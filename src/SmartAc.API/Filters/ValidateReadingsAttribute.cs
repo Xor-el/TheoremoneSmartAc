@@ -1,7 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using SmartAc.Application.Contracts;
+using SmartAc.API.Contracts;
 using System.Collections.Immutable;
 
 namespace SmartAc.API.Filters

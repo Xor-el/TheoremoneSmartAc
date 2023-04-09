@@ -18,6 +18,8 @@ public interface ISpecification<T>
 
     bool IsPagingEnabled { get; }
 
+    bool IsQuerySplittingEnabled { get; }
+
     int Take { get; }
 
     int Skip { get; }

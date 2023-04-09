@@ -8,8 +8,6 @@ public class DeviceRegistration : EntityBase
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int DeviceRegistrationId { get; private set; }
 
-    public Device Device { get; private set; } = null!;
-
     public string DeviceSerialNumber { get; set; } = string.Empty;
 
     public DateTimeOffset RegistrationDate { get; set; } = DateTimeOffset.Now;

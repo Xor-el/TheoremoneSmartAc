@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,16 +18,16 @@ public static class ServiceCollectionExtensions
         var connectionString =
             configuration.GetConnectionString("smartac") ?? "Data Source=SmartAc.db";
 
-        services.AddSqlite<SmartAcContext>(connectionString, optionsAction: builder =>
+        services.AddDbContext<SmartAcContext>(options =>
         {
-            builder.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted }, LogLevel.Information);
+            options.UseSqlite(connectionString, builder => builder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+            //options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution);
+            options.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted }, LogLevel.Information);
         });
 
-        services.TryAddScoped<IUnitOfWork, UnitOfWork>();
-
+        //services.TryAddScoped<IUnitOfWork, UnitOfWork>();
+        services.TryAddScoped<ISmartAcJwtService, SmartAcJwtService>();
         services.TryAddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-        services.TryAddTransient<ISmartAcJwtService, SmartAcJwtService>();
 
         return services;
     }

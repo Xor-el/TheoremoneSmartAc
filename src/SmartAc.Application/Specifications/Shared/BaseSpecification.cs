@@ -24,13 +24,23 @@ public abstract class BaseSpecification<T> : ISpecification<T>
 
     public bool IsPagingEnabled { get; private set; }
 
+    public bool IsQuerySplittingEnabled { get; private set; }
+
     public int Take { get; private set; }
 
     public int Skip { get; private set; }
 
-    protected virtual void AddInclude(Expression<Func<T, object>> include) => Includes.Add(include);
+    protected virtual void AddInclude(Expression<Func<T, object>> include)
+    {
+        Includes.Add(include);
+        IsQuerySplittingEnabled = true;
+    }
 
-    protected virtual void AddInclude(string include) => IncludeStrings.Add(include);
+    protected virtual void AddInclude(string include)
+    {
+        IncludeStrings.Add(include);
+        IsQuerySplittingEnabled = true;
+    }
 
     protected virtual void ApplyPaging(int skip, int take)
     {

@@ -1,6 +1,6 @@
 using SmartAc.Domain;
 
-namespace SmartAc.Application.Contracts;
+namespace SmartAc.API.Contracts;
 
 public sealed record SensorReading(
     DateTimeOffset RecordedDateTime,

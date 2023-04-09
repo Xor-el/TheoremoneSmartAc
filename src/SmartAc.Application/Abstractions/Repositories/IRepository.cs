@@ -9,7 +9,7 @@ public interface IRepository<TEntity> where TEntity : EntityBase
 {
     ConfiguredValueTaskAwaitable<TEntity?> FindByIdAsync(object id, CancellationToken cancellationToken = default);
 
-    IQueryable<TEntity> Find(ISpecification<TEntity> specification);
+    IQueryable<TEntity> GetQueryable(ISpecification<TEntity> specification);
 
     void Add(TEntity entity);
 
@@ -28,4 +28,6 @@ public interface IRepository<TEntity> where TEntity : EntityBase
     ConfiguredTaskAwaitable<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
 
     ConfiguredTaskAwaitable<int> CountAsync(ISpecification<TEntity> specification, CancellationToken cancellationToken = default);
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,5 +1,5 @@
 using FluentValidation;
-using SmartAc.Application.Contracts;
+using SmartAc.API.Contracts;
 
 namespace SmartAc.API.Validators;
 

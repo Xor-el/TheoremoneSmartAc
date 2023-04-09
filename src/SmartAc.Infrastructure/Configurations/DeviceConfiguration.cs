@@ -10,17 +10,17 @@ internal sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
     {
         builder
             .HasMany(x => x.DeviceReadings)
-            .WithOne(x => x.Device)
+            .WithOne()
             .IsRequired();
 
         builder
             .HasMany(x => x.DeviceRegistrations)
-            .WithOne(x => x.Device)
+            .WithOne()
             .IsRequired();
 
         builder
             .HasMany(x => x.Alerts)
-            .WithOne(x => x.Device)
+            .WithOne()
             .IsRequired();
 
         builder

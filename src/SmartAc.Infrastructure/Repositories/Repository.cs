@@ -9,24 +9,24 @@ namespace SmartAc.Infrastructure.Repositories;
 
 public class Repository<TEntity> : IRepository<TEntity> where TEntity : EntityBase
 {
-    private readonly DbSet<TEntity> _table;
+    private readonly SmartAcContext _context;
 
-    public Repository(DbContext context) => _table = context.Set<TEntity>();
+    public Repository(SmartAcContext context) => _context = context;
 
     public ConfiguredValueTaskAwaitable<TEntity?> FindByIdAsync(object id, CancellationToken cancellationToken = default)
-        => _table.FindAsync(new[] { id }, cancellationToken).ConfigureAwait(false);
+        => _context.Set<TEntity>().FindAsync(new[] { id }, cancellationToken).ConfigureAwait(false);
 
-    public IQueryable<TEntity> Find(ISpecification<TEntity> specification) => ApplySpecification(specification);
+    public IQueryable<TEntity> GetQueryable(ISpecification<TEntity> specification) => ApplySpecification(specification);
 
-    public void Add(TEntity entity) => _table.Add(entity);
+    public void Add(TEntity entity) => _context.Set<TEntity>().Add(entity);
 
-    public void AddRange(IEnumerable<TEntity> entities) => _table.AddRange(entities);
+    public void AddRange(IEnumerable<TEntity> entities) => _context.Set<TEntity>().AddRange(entities);
 
-    public void Update(TEntity entity) => _table.Update(entity);
+    public void Update(TEntity entity) => _context.Set<TEntity>().Update(entity);
 
-    public void Remove(TEntity entity) => _table.Remove(entity);
+    public void Remove(TEntity entity) => _context.Set<TEntity>().Remove(entity);
 
-    public void RemoveRange(IEnumerable<TEntity> entities) => _table.RemoveRange(entities);
+    public void RemoveRange(IEnumerable<TEntity> entities) => _context.Set<TEntity>().RemoveRange(entities);
 
     public ConfiguredTaskAwaitable<bool> ContainsAsync(
         ISpecification<TEntity> specification,
@@ -35,21 +35,30 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : EntityBa
         return ApplySpecification(specification).AnyAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public ConfiguredTaskAwaitable<bool> ContainsAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
+    public ConfiguredTaskAwaitable<bool> ContainsAsync(
+        Expression<Func<TEntity, bool>> predicate,
+        CancellationToken cancellationToken = default)
     {
-        return _table.Where(predicate).AnyAsync(cancellationToken).ConfigureAwait(false);
+        return _context.Set<TEntity>().Where(predicate).AnyAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public ConfiguredTaskAwaitable<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
+    public ConfiguredTaskAwaitable<int> CountAsync(
+        Expression<Func<TEntity, bool>> predicate,
+        CancellationToken cancellationToken = default)
     {
-        return _table.Where(predicate).CountAsync(cancellationToken).ConfigureAwait(false);
+        return _context.Set<TEntity>().Where(predicate).CountAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public ConfiguredTaskAwaitable<int> CountAsync(ISpecification<TEntity> specification, CancellationToken cancellationToken = default)
+    public ConfiguredTaskAwaitable<int> CountAsync(
+        ISpecification<TEntity> specification,
+        CancellationToken cancellationToken = default)
     {
         return ApplySpecification(specification).CountAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _context.SaveChangesAsync(cancellationToken);
+
     private IQueryable<TEntity> ApplySpecification(ISpecification<TEntity> specification)
-        => SpecificationEvaluator<TEntity>.GetQuery(_table.AsQueryable(), specification);
+        => SpecificationEvaluator<TEntity>.GetQuery(_context.Set<TEntity>().AsQueryable(), specification);
 }

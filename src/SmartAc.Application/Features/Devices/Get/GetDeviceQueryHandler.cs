@@ -11,25 +11,23 @@ namespace SmartAc.Application.Features.Devices.Get;
 
 internal sealed class GetDeviceQueryHandler : IRequestHandler<GetDeviceQuery, ErrorOr<Device>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRepository<Device> _repository;
     private readonly ILogger<GetDeviceQueryHandler> _logger;
 
-    public GetDeviceQueryHandler(IUnitOfWork unitOfWork, ILogger<GetDeviceQueryHandler> logger)
+    public GetDeviceQueryHandler(IRepository<Device> repository, ILogger<GetDeviceQueryHandler> logger)
     {
-        _unitOfWork = unitOfWork;
+        _repository = repository;
         _logger = logger;
     }
 
     public async Task<ErrorOr<Device>> Handle(GetDeviceQuery request, CancellationToken cancellationToken)
     {
-        IRepository<Device> repo = _unitOfWork.GetRepository<Device>();
-
         var specification =
             new DevicesWithRegistrationsSpecification(request.SerialNumber, request.SharedSecret);
 
-        if (await repo.ContainsAsync(specification, cancellationToken))
+        if (await _repository.ContainsAsync(specification, cancellationToken))
         {
-            return await repo.Find(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
+            return await _repository.GetQueryable(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
         }
 
         _logger.LogDebug(

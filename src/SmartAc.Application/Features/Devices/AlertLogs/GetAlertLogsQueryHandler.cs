@@ -10,14 +10,12 @@ namespace SmartAc.Application.Features.Devices.AlertLogs;
 
 internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQuery, ErrorOr<PagedList<LogItem>>>
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRepository<Device> _repository;
 
-    public GetAlertLogsQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public GetAlertLogsQueryHandler(IRepository<Device> repository) => _repository = repository;
 
     public async Task<ErrorOr<PagedList<LogItem>>> Handle(GetAlertLogsQuery request, CancellationToken cancellationToken)
     {
-        IRepository<Device> repo = _unitOfWork.GetRepository<Device>();
-
         AlertState? alertState = request.Params.Filter switch
         {
             FilterType.New => AlertState.New,
@@ -29,7 +27,7 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
             ? new DevicesWithAlertsSpecification(request.SerialNumber)
             : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value);
 
-        if (!await repo.ContainsAsync(specification, cancellationToken))
+        if (!await _repository.ContainsAsync(specification, cancellationToken))
         {
             return Error.NotFound(
                 "Device.NotFound",
@@ -37,18 +35,17 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
         }
 
         var itemsCount = await
-            repo
-                .Find(specification)
+            _repository
+                .GetQueryable(specification)
                 .SelectMany(x => x.Alerts)
-                .CountAsync(cancellationToken)
-                .ConfigureAwait(false);
+                .CountAsync(cancellationToken).ConfigureAwait(false);
 
         if (itemsCount == 0)
         {
             return new PagedList<LogItem>(
-                Enumerable.Empty<LogItem>(), 
-                0, 
-                request.Params.PageNumber, 
+                Enumerable.Empty<LogItem>(),
+                0,
+                request.Params.PageNumber,
                 request.Params.PageSize);
         }
 
@@ -60,7 +57,7 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
             : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value, skip, take);
 
         var device = await
-            repo.Find(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
+            _repository.GetQueryable(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
 
         var logItems = ComputeLogItems(device);
 
@@ -70,15 +67,15 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
     private static IEnumerable<LogItem> ComputeLogItems(Device device)
     {
         return device.Alerts.GroupJoin(
-            device.DeviceReadings, alert => alert.Device, reading => reading.Device,
+            device.DeviceReadings, alert => alert.DeviceSerialNumber, reading => reading.DeviceSerialNumber,
             (alert, readings) => new LogItem
             {
                 AlertType = alert.AlertType,
                 Message = alert.Message,
                 AlertState = alert.AlertState,
-                DateTimeCreated = alert.DateTimeCreated,
-                DateTimeReported = alert.DateTimeReported,
-                DateTimeLastReported = alert.DateTimeLastReported,
+                DateTimeCreated = alert.CreatedDateTime,
+                DateTimeReported = alert.ReportedDateTime,
+                DateTimeLastReported = alert.LastReportedDateTime,
                 MinValue = alert.AlertType switch
                 {
                     AlertType.OutOfRangeTemp => readings.Min(x => x.Temperature),

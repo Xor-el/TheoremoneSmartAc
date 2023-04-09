@@ -8,7 +8,7 @@ public class SpecificationEvaluator<TEntity> where TEntity : EntityBase
 {
     public static IQueryable<TEntity> GetQuery(IQueryable<TEntity> inputQuery, ISpecification<TEntity> specification)
     {
-        var query = inputQuery;
+        var query = specification.IsQuerySplittingEnabled ? inputQuery.AsSplitQuery() : inputQuery;
 
         if (specification.Criteria is not null)
         {

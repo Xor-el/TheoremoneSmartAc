@@ -1,6 +1,6 @@
 using MediatR;
-using SmartAc.Application.Contracts;
+using SmartAc.Domain;
 
 namespace SmartAc.Application.Features.DeviceReadings.StoreReadings;
 
-public sealed record StoreReadingsCommand(string SerialNumber, IEnumerable<SensorReading> Readings) : IRequest;
+public sealed record StoreReadingsCommand(List<DeviceReading> Readings) : IRequest;

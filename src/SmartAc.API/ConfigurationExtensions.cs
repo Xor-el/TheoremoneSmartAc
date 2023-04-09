@@ -134,6 +134,7 @@ internal static class ConfigurationExtensions
         using var scope = app.Services.CreateScope();
         var services = scope.ServiceProvider;
         var db = services.GetRequiredService<SmartAcContext>();
+        db.Database.EnsureDeleted();
         db.Database.EnsureCreated();
         SmartAcDataSeeder.Seed(db);
     }

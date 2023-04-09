@@ -2,13 +2,14 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartAc.API.Bindings;
+using SmartAc.API.Contracts;
 using SmartAc.API.Filters;
 using SmartAc.Application.Contracts;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using SmartAc.Application.Features.DeviceReadings.StoreReadings;
 using SmartAc.Application.Features.Devices.AlertLogs;
 using SmartAc.Application.Features.Devices.Registration;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace SmartAc.API.Controllers;
 
@@ -43,9 +44,8 @@ public class DeviceIngestionController : ControllerBase
         [Required][FromQuery] string firmwareVersion)
     {
         var registerResult = await
-            _sender
-                .Send(new RegisterDeviceCommand(serialNumber, sharedSecret, firmwareVersion))
-                .ConfigureAwait(false);
+            _sender.Send(new RegisterDeviceCommand(serialNumber, sharedSecret, firmwareVersion))
+                   .ConfigureAwait(false);
 
         if (registerResult.IsError)
         {
@@ -77,15 +77,18 @@ public class DeviceIngestionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ValidateReadings]
     [AllowAnonymous]
-    public Task<IActionResult> AddSensorReadings(
+    public async Task<IActionResult> AddSensorReadings(
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromBody] IEnumerable<SensorReading> sensorReadings)
     {
-        _sender
-            .Send(new StoreReadingsCommand(serialNumber, sensorReadings))
-            .ConfigureAwait(false);
+        var readings =
+            sensorReadings
+                .Select(r => r.ToDeviceReading(serialNumber))
+                .ToList();
 
-        return Task.FromResult<IActionResult>(Accepted());
+        await _sender.Send(new StoreReadingsCommand(readings)).ConfigureAwait(false);
+
+        return Accepted();
     }
 
     /// <summary>
@@ -107,16 +110,14 @@ public class DeviceIngestionController : ControllerBase
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromQuery] QueryParams parameters)
     {
-        var logResult = await 
-            _sender
-                .Send(new GetAlertLogsQuery(serialNumber, parameters))
-                .ConfigureAwait(false);
+        var logResult = await
+            _sender.Send(new GetAlertLogsQuery(serialNumber, parameters)).ConfigureAwait(false);
 
         if (logResult.IsError)
         {
             return NotFound(new
             {
-                logResult.FirstError.Code, 
+                logResult.FirstError.Code,
                 logResult.FirstError.Description
             });
         }

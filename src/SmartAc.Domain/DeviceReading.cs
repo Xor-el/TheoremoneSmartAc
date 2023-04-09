@@ -27,6 +27,4 @@ public class DeviceReading : EntityBase
     public DateTimeOffset ReceivedDateTime { get; private set; } = DateTimeOffset.UtcNow;
 
     public string DeviceSerialNumber { get; set; } = string.Empty;
-
-    public Device Device { get; private set; } = null!;
 }
