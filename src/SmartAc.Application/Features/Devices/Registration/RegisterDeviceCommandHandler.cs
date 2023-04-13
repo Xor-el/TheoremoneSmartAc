@@ -42,13 +42,13 @@ internal sealed class RegisterDeviceCommandHandler : IRequestHandler<RegisterDev
         var (tokenId, jwtToken) =
             _jwtService.GenerateJwtFor(request.SerialNumber, _jwtService.JwtScopeDeviceIngestionService);
 
-        var newRegistrationDevice = new DeviceRegistration
+        var registration = new DeviceRegistration
         {
             DeviceSerialNumber = device.SerialNumber,
             TokenId = tokenId
         };
 
-        device.AddRegistration(newRegistrationDevice, request.FirmwareVersion);
+        device.AddRegistration(registration, request.FirmwareVersion);
 
         _repository.Update(device);
 

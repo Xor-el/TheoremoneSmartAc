@@ -20,12 +20,12 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<SmartAcContext>(options =>
         {
-            options.UseSqlite(connectionString, builder => builder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+            options.UseSqlite(connectionString,
+                builder => builder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             //options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution);
             options.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted }, LogLevel.Information);
         });
 
-        //services.TryAddScoped<IUnitOfWork, UnitOfWork>();
         services.TryAddScoped<ISmartAcJwtService, SmartAcJwtService>();
         services.TryAddScoped(typeof(IRepository<>), typeof(Repository<>));
 

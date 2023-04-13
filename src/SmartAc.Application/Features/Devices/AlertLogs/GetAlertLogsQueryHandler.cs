@@ -12,9 +12,14 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
 {
     private readonly IRepository<Device> _repository;
 
-    public GetAlertLogsQueryHandler(IRepository<Device> repository) => _repository = repository;
+    public GetAlertLogsQueryHandler(IRepository<Device> repository)
+    {
+        _repository = repository;
+    }
 
-    public async Task<ErrorOr<PagedList<LogItem>>> Handle(GetAlertLogsQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<PagedList<LogItem>>> Handle(
+        GetAlertLogsQuery request,
+        CancellationToken cancellationToken)
     {
         AlertState? alertState = request.Params.Filter switch
         {
@@ -41,13 +46,11 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
                 .CountAsync(cancellationToken).ConfigureAwait(false);
 
         if (itemsCount == 0)
-        {
             return new PagedList<LogItem>(
                 Enumerable.Empty<LogItem>(),
                 0,
                 request.Params.PageNumber,
                 request.Params.PageSize);
-        }
 
         var skip = request.Params.PageSize * (request.Params.PageNumber - 1);
         var take = request.Params.PageSize;
@@ -57,41 +60,49 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
             : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value, skip, take);
 
         var device = await
-            _repository.GetQueryable(specification).SingleAsync(cancellationToken).ConfigureAwait(false);
+            _repository.GetQueryable(specification)
+                       .SingleAsync(cancellationToken)
+                       .ConfigureAwait(false);
 
-        var logItems = ComputeLogItems(device);
+        var logItems = ComputeLogItems(device, cancellationToken);
 
         return new PagedList<LogItem>(logItems, itemsCount, request.Params.PageNumber, request.Params.PageSize);
     }
 
-    private static IEnumerable<LogItem> ComputeLogItems(Device device)
+    private static IEnumerable<LogItem> ComputeLogItems(Device device, CancellationToken cancellationToken)
     {
-        return device.Alerts.GroupJoin(
-            device.DeviceReadings, alert => alert.DeviceSerialNumber, reading => reading.DeviceSerialNumber,
-            (alert, readings) => new LogItem
-            {
-                AlertType = alert.AlertType,
-                Message = alert.Message,
-                AlertState = alert.AlertState,
-                DateTimeCreated = alert.CreatedDateTime,
-                DateTimeReported = alert.ReportedDateTime,
-                DateTimeLastReported = alert.LastReportedDateTime,
-                MinValue = alert.AlertType switch
+        return device.Alerts
+            .AsParallel()
+            .WithDegreeOfParallelism(Environment.ProcessorCount / 2)
+            .WithCancellation(cancellationToken)
+            .GroupJoin(
+                device.DeviceReadings.AsParallel(),
+                alert => alert.DeviceSerialNumber,
+                reading => reading.DeviceSerialNumber,
+                (alert, readings) => new LogItem
                 {
-                    AlertType.OutOfRangeTemp => readings.Min(x => x.Temperature),
-                    AlertType.OutOfRangeCo => readings.Min(x => x.CarbonMonoxide),
-                    AlertType.OutOfRangeHumidity => readings.Min(x => x.Humidity),
-                    AlertType.DangerousCoLevel => readings.Min(x => x.CarbonMonoxide),
-                    _ => 0m
-                },
-                MaxValue = alert.AlertType switch
-                {
-                    AlertType.OutOfRangeTemp => readings.Max(x => x.Temperature),
-                    AlertType.OutOfRangeCo => readings.Max(x => x.CarbonMonoxide),
-                    AlertType.OutOfRangeHumidity => readings.Max(x => x.Humidity),
-                    AlertType.DangerousCoLevel => readings.Max(x => x.CarbonMonoxide),
-                    _ => 0m
-                },
-            });
+                    AlertType = alert.AlertType,
+                    Message = alert.Message,
+                    AlertState = alert.AlertState,
+                    DateTimeCreated = alert.CreatedDateTime,
+                    DateTimeReported = alert.ReportedDateTime,
+                    DateTimeLastReported = alert.LastReportedDateTime,
+                    MinValue = alert.AlertType switch
+                    {
+                        AlertType.OutOfRangeTemp => readings.AsParallel().Min(x => x.Temperature),
+                        AlertType.OutOfRangeCo => readings.AsParallel().Min(x => x.CarbonMonoxide),
+                        AlertType.OutOfRangeHumidity => readings.AsParallel().Min(x => x.Humidity),
+                        AlertType.DangerousCoLevel => readings.AsParallel().Min(x => x.CarbonMonoxide),
+                        _ => 0m
+                    },
+                    MaxValue = alert.AlertType switch
+                    {
+                        AlertType.OutOfRangeTemp => readings.AsParallel().Max(x => x.Temperature),
+                        AlertType.OutOfRangeCo => readings.AsParallel().Max(x => x.CarbonMonoxide),
+                        AlertType.OutOfRangeHumidity => readings.AsParallel().Max(x => x.Humidity),
+                        AlertType.DangerousCoLevel => readings.AsParallel().Max(x => x.CarbonMonoxide),
+                        _ => 0m
+                    }
+                });
     }
 }
