@@ -74,7 +74,7 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
     private static IEnumerable<LogItem> ComputeLogItems(Device device, CancellationToken cancellationToken)
     {
         return device.Alerts
-            .AsParallel()
+            .AsParallel().AsOrdered()
             .WithDegreeOfParallelism(Environment.ProcessorCount / 2)
             .WithCancellation(cancellationToken)
             .GroupJoin(
