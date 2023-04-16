@@ -23,11 +23,10 @@ public class ValidateReadingsAttribute : Attribute, IAsyncActionFilter
         var results = await Task.WhenAll(tasks);
 
         var failures =
-            results
-                .SelectMany(x => x.Errors)
-                .AsParallel()
-                .GroupBy(x => x.PropertyName)
-                .ToImmutableDictionary(g =>
+            results.AsParallel()
+                   .SelectMany(x => x.Errors)
+                   .GroupBy(x => x.PropertyName)
+                   .ToImmutableDictionary(g =>
                     g.Key, g => g.Select(x => x.ErrorMessage).ToArray());
 
         if (!failures.Any())
