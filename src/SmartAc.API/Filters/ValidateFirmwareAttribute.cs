@@ -16,12 +16,6 @@ public sealed class ValidateFirmwareAttribute : ActionFilterAttribute
 
     public override void OnActionExecuting(ActionExecutingContext context)
     {
-        if (!context.ModelState.IsValid)
-        {
-            context.Result = new BadRequestObjectResult(context.ModelState);
-            return;
-        }
-
         string firmwareVersion = context.HttpContext.Request.Query["firmwareVersion"];
 
         if (_regex.IsMatch(firmwareVersion))
