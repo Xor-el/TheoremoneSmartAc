@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Extensions;
+using SmartAc.Application.Helpers;
 using SmartAc.Application.Options;
 using SmartAc.Application.Specifications.Alerts;
 using SmartAc.Domain;
@@ -20,20 +21,22 @@ internal sealed class ReadingsStoredEventHandler : INotificationHandler<Readings
         _sensorParams = parameters.Value;
     }
 
-    public Task Handle(ReadingsStoredEvent notification, CancellationToken cancellationToken)
+    public async Task Handle(ReadingsStoredEvent notification, CancellationToken cancellationToken)
     {
         foreach (var reading in notification.Readings.OrderBy(r => r.RecordedDateTime))
         {
-            ProcessPotentialAlerts(reading, cancellationToken).ConfigureAwait(false);
-            TryResolveErrorStates(reading, cancellationToken).ConfigureAwait(false);
+            var alertIds = await ProcessPotentialAlerts(reading, cancellationToken).ConfigureAwait(false);
+            await TryResolveErrorStates(alertIds, reading, cancellationToken).ConfigureAwait(false);
         }
-        return Task.CompletedTask;
     }
 
-    private async Task ProcessPotentialAlerts(DeviceReading reading, CancellationToken cancellationToken = default)
+    private async Task<int[]> ProcessPotentialAlerts(DeviceReading reading,
+        CancellationToken cancellationToken = default)
     {
         var alerts =
-            reading.GetPotentialAlerts(_sensorParams).OrderBy(x => x.ReportedDateTime);
+            reading.GetPotentialAlerts(_sensorParams)
+                   .OrderBy(x => x.ReportedDateTime)
+                   .ToList();
 
         foreach (var alert in alerts)
         {
@@ -46,38 +49,43 @@ internal sealed class ReadingsStoredEventHandler : INotificationHandler<Readings
                 continue;
             }
 
-            var dbAlert = await
+            var alertFromDb = await
                 _repository
                     .GetQueryable(specification)
                     .FirstAsync(cancellationToken);
 
-            var diff = (alert.ReportedDateTime - dbAlert.ReportedDateTime).TotalMinutes;
+            var diff = (alert.ReportedDateTime - alertFromDb.ReportedDateTime).TotalMinutes;
 
             var alertState = diff <= _sensorParams.ReadingTimespanMinutes
-                ? dbAlert.AlertState == AlertState.Resolved ? AlertState.New : dbAlert.AlertState
+                ? alertFromDb.AlertState == AlertState.Resolved ? AlertState.New : alertFromDb.AlertState
                 : AlertState.Resolved;
 
-            dbAlert.Update(alert.ReportedDateTime, alert.Message, alertState);
+            alertFromDb.Update(alert.ReportedDateTime, alert.Message, alertState);
 
-            _repository.Update(dbAlert);
+            _repository.Update(alertFromDb);
 
-            if (diff > _sensorParams.ReadingTimespanMinutes)
+            if (alertState == AlertState.Resolved)
             {
                 _repository.Add(alert);
             }
 
             await _repository.SaveChangesAsync(cancellationToken);
         }
+
+        return alerts.Select(x => x.AlertId).ToArray();
     }
 
-    private async Task TryResolveErrorStates(DeviceReading reading, CancellationToken cancellationToken)
+    private async Task TryResolveErrorStates(int[] alertIdsToExclude, DeviceReading reading,
+        CancellationToken cancellationToken)
     {
-        var specification = new AlertsSpecification(reading.DeviceSerialNumber, AlertState.New);
+        var specification =
+            new AlertsMatchingStateExcludingIdsSpecification(reading.DeviceSerialNumber, AlertState.New,
+                alertIdsToExclude);
 
         var alerts = await
             _repository.GetQueryable(specification).ToListAsync(cancellationToken);
 
-        foreach (var alert in alerts.Where(alert => Helpers.Helpers.IsResolved(alert.AlertType, reading, _sensorParams)))
+        foreach (var alert in alerts.Where(alert => AlertHelpers.IsResolved(alert.AlertType, reading, _sensorParams)))
         {
             alert.Update(reading.RecordedDateTime, alert.Message, AlertState.Resolved);
             _repository.Update(alert);

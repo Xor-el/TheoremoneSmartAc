@@ -19,11 +19,8 @@ internal sealed class StoreReadingsCommandHandler : IRequestHandler<StoreReading
     public Task Handle(StoreReadingsCommand request, CancellationToken cancellationToken)
     {
         _repository.AddRange(request.Readings);
-
-        var saveTask = _repository.SaveChangesAsync(cancellationToken);
-        var publishTask = _publisher.Publish(new ReadingsStoredEvent(request.Readings), cancellationToken);
-
-        Task.WhenAll(saveTask, publishTask).ConfigureAwait(false);
+        _repository.SaveChangesAsync(cancellationToken);
+        _publisher.Publish(new ReadingsStoredEvent(request.Readings), cancellationToken);
         return Task.CompletedTask;
     }
 }

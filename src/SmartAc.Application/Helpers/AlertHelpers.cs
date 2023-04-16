@@ -4,7 +4,7 @@ using SmartAc.Domain;
 
 namespace SmartAc.Application.Helpers;
 
-public static class Helpers
+public static class AlertHelpers
 {
     public static bool IsResolved(AlertType alertType, DeviceReading reading, SensorParams sensorParams)
     {

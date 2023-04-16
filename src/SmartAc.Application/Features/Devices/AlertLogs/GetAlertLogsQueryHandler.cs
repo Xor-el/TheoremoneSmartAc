@@ -46,11 +46,13 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
                 .CountAsync(cancellationToken).ConfigureAwait(false);
 
         if (itemsCount == 0)
+        {
             return new PagedList<LogItem>(
                 Enumerable.Empty<LogItem>(),
                 0,
                 request.Params.PageNumber,
                 request.Params.PageSize);
+        }
 
         var skip = request.Params.PageSize * (request.Params.PageNumber - 1);
         var take = request.Params.PageSize;
