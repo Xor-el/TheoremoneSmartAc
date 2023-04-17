@@ -82,7 +82,6 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
                     DateTimeLastReported = alert.LastReportedDateTime,
                     MinValue = alert.AlertType switch
                     {
-                        
                         AlertType.OutOfRangeTemp => readings.Min(x => x.Temperature),
                         AlertType.OutOfRangeCo => readings.Min(x => x.CarbonMonoxide),
                         AlertType.OutOfRangeHumidity => readings.Min(x => x.Humidity),
