@@ -21,26 +21,34 @@ internal sealed class ReadingsStoredEventHandler : INotificationHandler<Readings
         _sensorParams = parameters.Value;
     }
 
-    public async Task Handle(ReadingsStoredEvent notification, CancellationToken cancellationToken)
+    public Task Handle(ReadingsStoredEvent notification, CancellationToken cancellationToken)
     {
         foreach (var reading in notification.Readings.OrderBy(r => r.RecordedDateTime))
         {
-            var alertIds = await ProcessPotentialAlerts(reading, cancellationToken).ConfigureAwait(false);
-            await TryResolveErrorStates(alertIds, reading, cancellationToken).ConfigureAwait(false);
+            var alerts =
+                reading.GetPotentialAlerts(_sensorParams)
+                       .OrderBy(x => x.ReportedDateTime)
+                       .ToList();
+
+            if (!alerts.Any())
+            {
+                continue;
+            }
+
+            var processTask = ProcessPotentialAlerts(alerts, cancellationToken);
+            var resolveTask = TryResolveErrorStates(alerts.Select(x => x.AlertId).ToArray(), reading, cancellationToken);
+
+            Task.WhenAny(processTask, resolveTask).ConfigureAwait(false);
         }
+
+        return Task.CompletedTask;
     }
 
-    private async Task<int[]> ProcessPotentialAlerts(DeviceReading reading,
-        CancellationToken cancellationToken = default)
+    private async Task ProcessPotentialAlerts(IEnumerable<Alert> alerts, CancellationToken cancellationToken = default)
     {
-        var alerts =
-            reading.GetPotentialAlerts(_sensorParams)
-                   .OrderBy(x => x.ReportedDateTime)
-                   .ToList();
-
         foreach (var alert in alerts)
         {
-            var specification = new AlertsSpecification(reading.DeviceSerialNumber, alert.AlertType);
+            var specification = new AlertsSpecification(alert.DeviceSerialNumber, alert.AlertType);
 
             if (!await _repository.ContainsAsync(specification, cancellationToken))
             {
@@ -50,9 +58,8 @@ internal sealed class ReadingsStoredEventHandler : INotificationHandler<Readings
             }
 
             var alertFromDb = await
-                _repository
-                    .GetQueryable(specification)
-                    .FirstAsync(cancellationToken);
+                _repository.GetQueryable(specification)
+                           .FirstAsync(cancellationToken);
 
             var diff = (alert.ReportedDateTime - alertFromDb.ReportedDateTime).TotalMinutes;
 
@@ -71,19 +78,16 @@ internal sealed class ReadingsStoredEventHandler : INotificationHandler<Readings
 
             await _repository.SaveChangesAsync(cancellationToken);
         }
-
-        return alerts.Select(x => x.AlertId).ToArray();
     }
 
-    private async Task TryResolveErrorStates(int[] alertIdsToExclude, DeviceReading reading,
-        CancellationToken cancellationToken)
+    private async Task TryResolveErrorStates(int[] alertIdsToExclude, DeviceReading reading, CancellationToken cancellationToken)
     {
         var specification =
-            new AlertsMatchingStateExcludingIdsSpecification(reading.DeviceSerialNumber, AlertState.New,
-                alertIdsToExclude);
+            new AlertsMatchingStateSpecification(reading.DeviceSerialNumber, AlertState.New, alertIdsToExclude);
 
         var alerts = await
-            _repository.GetQueryable(specification).ToListAsync(cancellationToken);
+            _repository.GetQueryable(specification)
+                       .ToListAsync(cancellationToken);
 
         foreach (var alert in alerts.Where(alert => AlertHelpers.IsResolved(alert.AlertType, reading, _sensorParams)))
         {

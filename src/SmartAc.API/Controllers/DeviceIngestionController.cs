@@ -81,12 +81,10 @@ public class DeviceIngestionController : ControllerBase
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromBody] IEnumerable<SensorReading> sensorReadings)
     {
-        var readings =
-            sensorReadings
-                .Select(r => r.ToDeviceReading(serialNumber))
-                .ToList();
+        var readings = sensorReadings.Select(r => r.ToDeviceReading(serialNumber));
 
-        await _sender.Send(new StoreReadingsCommand(readings)).ConfigureAwait(false);
+        await _sender.Send(new StoreReadingsCommand(readings))
+                     .ConfigureAwait(false);
 
         return Accepted();
     }
@@ -98,42 +96,32 @@ public class DeviceIngestionController : ControllerBase
     /// <param name="serialNumber">Unique device identifier burned into ROM.</param>
     /// <param name="parameters">Query parameters for data filtering and paging.</param>
     /// <response code="401">If something is wrong on the information provided.</response>
-    /// <response code="404">If there is no device int the database matching the parameters</response>
-    /// <response code="200">There is data to display</response>
+    /// <response code="200">If there are log items to display or not.</response>
     /// <returns>A List of alerts matching the request parameters, with paging information in the response header.</returns>
     [HttpGet("alerts")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [AllowAnonymous]
     public async Task<IActionResult> GetSensorAlerts(
         [ModelBinder(BinderType = typeof(DeviceInfoBinder))] string serialNumber,
         [FromQuery] QueryParams parameters)
     {
         var logResult = await
-            _sender.Send(new GetAlertLogsQuery(serialNumber, parameters)).ConfigureAwait(false);
-
-        if (logResult.IsError)
-        {
-            return NotFound(new
-            {
-                logResult.FirstError.Code,
-                logResult.FirstError.Description
-            });
-        }
+            _sender.Send(new GetAlertLogsQuery(serialNumber, parameters))
+                   .ConfigureAwait(false);
 
         var metadata = new
         {
-            logResult.Value.TotalCount,
-            logResult.Value.PageSize,
-            logResult.Value.CurrentPage,
-            logResult.Value.TotalPages,
-            logResult.Value.HasNext,
-            logResult.Value.HasPrevious
+            logResult.TotalCount,
+            logResult.PageSize,
+            logResult.CurrentPage,
+            logResult.TotalPages,
+            logResult.HasNext,
+            logResult.HasPrevious
         };
 
         Response.Headers.Add("X-Pagination", JsonSerializer.Serialize(metadata));
 
-        return Ok(logResult.Value);
+        return Ok(logResult);
     }
 }

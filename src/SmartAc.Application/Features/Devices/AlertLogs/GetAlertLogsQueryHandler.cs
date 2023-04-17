@@ -1,25 +1,27 @@
-using ErrorOr;
+using System.Linq.Expressions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using SmartAc.Application.Abstractions.Repositories;
 using SmartAc.Application.Contracts;
+using SmartAc.Application.Specifications.Alerts;
 using SmartAc.Application.Specifications.Devices;
 using SmartAc.Domain;
+// ReSharper disable PossibleMultipleEnumeration
 
 namespace SmartAc.Application.Features.Devices.AlertLogs;
 
-internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQuery, ErrorOr<PagedList<LogItem>>>
+internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQuery, PagedList<LogItem>>
 {
-    private readonly IRepository<Device> _repository;
+    private readonly IRepository<Device> _deviceRepository;
+    private readonly IRepository<Alert> _alertRepository;
 
-    public GetAlertLogsQueryHandler(IRepository<Device> repository)
+    public GetAlertLogsQueryHandler(IRepository<Device> deviceRepository, IRepository<Alert> alertRepository)
     {
-        _repository = repository;
+        _deviceRepository = deviceRepository;
+        _alertRepository = alertRepository;
     }
 
-    public async Task<ErrorOr<PagedList<LogItem>>> Handle(
-        GetAlertLogsQuery request,
-        CancellationToken cancellationToken)
+    public async Task<PagedList<LogItem>> Handle(GetAlertLogsQuery request, CancellationToken cancellationToken)
     {
         AlertState? alertState = request.Params.Filter switch
         {
@@ -28,22 +30,13 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
             _ => null
         };
 
-        var specification = alertState is null
-            ? new DevicesWithAlertsSpecification(request.SerialNumber)
-            : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value);
-
-        if (!await _repository.ContainsAsync(specification, cancellationToken))
-        {
-            return Error.NotFound(
-                "Device.NotFound",
-                $"Device with serial number '{request.SerialNumber}' was not found.");
-        }
+        Expression<Func<Alert, bool>> predicate = alert => 
+            alertState == null
+            ? alert.DeviceSerialNumber == request.SerialNumber
+            : alert.DeviceSerialNumber == request.SerialNumber && alert.AlertState == alertState;
 
         var itemsCount = await
-            _repository
-                .GetQueryable(specification)
-                .SelectMany(x => x.Alerts)
-                .CountAsync(cancellationToken).ConfigureAwait(false);
+            _alertRepository.CountAsync(new AlertsMatchingStateSpecification(predicate), cancellationToken);
 
         if (itemsCount == 0)
         {
@@ -55,16 +48,14 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
         }
 
         var skip = request.Params.PageSize * (request.Params.PageNumber - 1);
-        var take = request.Params.PageSize;
 
-        specification = alertState is null
-            ? new DevicesWithAlertsSpecification(request.SerialNumber, skip, take)
-            : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value, skip, take);
+        var specification = alertState is null
+            ? new DevicesWithAlertsSpecification(request.SerialNumber, skip, request.Params.PageSize)
+            : new DevicesWithAlertsSpecification(request.SerialNumber, alertState.Value, skip, request.Params.PageSize);
 
         var device = await
-            _repository.GetQueryable(specification)
-                       .SingleAsync(cancellationToken)
-                       .ConfigureAwait(false);
+            _deviceRepository.GetQueryable(specification)
+                             .SingleAsync(cancellationToken);
 
         var logItems = ComputeLogItems(device, cancellationToken);
 
@@ -91,18 +82,19 @@ internal sealed class GetAlertLogsQueryHandler : IRequestHandler<GetAlertLogsQue
                     DateTimeLastReported = alert.LastReportedDateTime,
                     MinValue = alert.AlertType switch
                     {
-                        AlertType.OutOfRangeTemp => readings.AsParallel().Min(x => x.Temperature),
-                        AlertType.OutOfRangeCo => readings.AsParallel().Min(x => x.CarbonMonoxide),
-                        AlertType.OutOfRangeHumidity => readings.AsParallel().Min(x => x.Humidity),
-                        AlertType.DangerousCoLevel => readings.AsParallel().Min(x => x.CarbonMonoxide),
+                        
+                        AlertType.OutOfRangeTemp => readings.Min(x => x.Temperature),
+                        AlertType.OutOfRangeCo => readings.Min(x => x.CarbonMonoxide),
+                        AlertType.OutOfRangeHumidity => readings.Min(x => x.Humidity),
+                        AlertType.DangerousCoLevel => readings.Min(x => x.CarbonMonoxide),
                         _ => 0m
                     },
                     MaxValue = alert.AlertType switch
                     {
-                        AlertType.OutOfRangeTemp => readings.AsParallel().Max(x => x.Temperature),
-                        AlertType.OutOfRangeCo => readings.AsParallel().Max(x => x.CarbonMonoxide),
-                        AlertType.OutOfRangeHumidity => readings.AsParallel().Max(x => x.Humidity),
-                        AlertType.DangerousCoLevel => readings.AsParallel().Max(x => x.CarbonMonoxide),
+                        AlertType.OutOfRangeTemp => readings.Max(x => x.Temperature),
+                        AlertType.OutOfRangeCo => readings.Max(x => x.CarbonMonoxide),
+                        AlertType.OutOfRangeHumidity => readings.Max(x => x.Humidity),
+                        AlertType.DangerousCoLevel => readings.Max(x => x.CarbonMonoxide),
                         _ => 0m
                     }
                 });
